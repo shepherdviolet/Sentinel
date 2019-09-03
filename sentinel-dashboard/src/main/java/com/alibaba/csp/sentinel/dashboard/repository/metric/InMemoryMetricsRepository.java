@@ -37,7 +37,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class InMemoryMetricsRepository implements MetricsRepository<MetricEntity> {
 
-    private static final long MAX_METRIC_LIVE_TIME_MS = 1000 * 60 * 5;
+    //Data is saved for 30 minutes
+    private static final long MAX_METRIC_LIVE_TIME_MS = 1000 * 60 * 30;
 
     //There is a problem with this implementation. The time unit of the statistical sample must be seconds.
     private static final long SECOND_MILLIS = 1000;

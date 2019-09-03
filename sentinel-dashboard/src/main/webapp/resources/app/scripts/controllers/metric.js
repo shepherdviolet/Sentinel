@@ -202,7 +202,8 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
             metrics.resource = identityName;
             // metrics.data = identityDatas;
             metrics.data = fillZeros(identityDatas);
-            metrics.shortData = lastOfArray(identityDatas, 6);
+            //Display 12 rows
+            metrics.shortData = lastOfArray(identityDatas, 12);
             $scope.metrics.push(metrics);
           });
           // push an empty element in the last, for ng-init reasons.

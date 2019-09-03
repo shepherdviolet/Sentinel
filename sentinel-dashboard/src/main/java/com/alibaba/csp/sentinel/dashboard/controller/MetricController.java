@@ -48,6 +48,7 @@ public class MetricController {
 
     private static Logger logger = LoggerFactory.getLogger(MetricController.class);
 
+    //Max interval
     private static final long maxQueryIntervalMs = 1000 * 60 * 60;
 
     @Autowired
@@ -79,7 +80,8 @@ public class MetricController {
             endTime = System.currentTimeMillis();
         }
         if (startTime == null) {
-            startTime = endTime - 1000 * 60 * 5;
+            //Return data for nearly 30 minutes
+            startTime = endTime - 1000 * 60 * 30;
         }
         if (endTime - startTime > maxQueryIntervalMs) {
             return Result.ofFail(-1, "time intervalMs is too big, must <= 1h");

@@ -41,30 +41,30 @@
 
                   <div class="card-body">
                     <div class="row">
-                      <div class="col-md-6">
+                      <div class="col-md-8">
                         <!--<div ng-if="$index != metrics.length-1" id="chart{{$index}}"></div>-->
                         <!--<div ng-if="$index == metrics.length-1" id="chart{{$index}}" ng-init="initAllChart()"></div>-->
                         <div id="chart{{$index}}"></div>
                       </div>
-                      <div class="col-md-6">
+                      <div class="col-md-4">
                         <table class="table table-hover table-striped table-bordered">
                           <thead>
-                            <tr style="font-size: 13px;text-align:center;font-weight: bold;">
-                              <td style="word-wrap:break-word;word-break:break-all;">时间</td>
-                              <td style="word-wrap:break-word;word-break:break-all;" title="通过 QPS (pass qps)">通过 QPS</td>
-                              <td style="word-wrap:break-word;word-break:break-all;" title="拒绝 QPS (blocked qps)">拒绝QPS</td>
-                              <td style="word-wrap:break-word;word-break:break-all;" title="RT: 平均响应时间（毫秒）">响应时间（ms）</td>
+                            <tr style="font-size: 10px;text-align:center;font-weight: bold;">
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;">时间</td>
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;" title="通过 QPS (pass qps)">通过 QPS</td>
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;" title="拒绝 QPS (blocked qps)">拒绝QPS</td>
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;" title="RT: 平均响应时间（毫秒）">响应时间ms</td>
                             </tr>
                           </thead>
                           <!-- thead -->
                           <tbody>
-                            <tr style="font-size: 12px;text-align:center;" ng-repeat="tableObj in metric.shortData">
-                              <td style="word-wrap:break-word;word-break:break-all; ">{{tableObj.timestamp | date: 'HH:mm:ss'}}</td>
-                              <td style="word-wrap:break-word;word-break:break-all; ">{{tableObj.passQps | number : 1}}</td>
-                              <td style="word-wrap:break-word;word-break:break-all; ">{{tableObj.blockQps | number : 1}}</td>
-                              <td style="word-wrap:break-word;word-break:break-all;">{{tableObj.rt | number : 1}}</td>
+                            <tr style="font-size: 10px;text-align:center;" ng-repeat="tableObj in metric.shortData">
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;">{{tableObj.timestamp | date: 'HH:mm:ss'}}</td>
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;">{{tableObj.passQps | number : 1}}</td>
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;">{{tableObj.blockQps | number : 1}}</td>
+                              <td style="word-wrap:break-word;word-break:break-all;padding:0;">{{tableObj.rt | number : 1}}</td>
                             </tr>
-                            <tr style="font-size: 12px;text-align:center;" ng-repeat="_tr in [] | range : (6 - metric.shortData.length)">
+                            <tr style="font-size: 10px;text-align:center;" ng-repeat="_tr in [] | range : (12 - metric.shortData.length)">
                               <td ng-repeat="_td in [] | range : 4">-</td>
                             </tr>
                           </tbody>
