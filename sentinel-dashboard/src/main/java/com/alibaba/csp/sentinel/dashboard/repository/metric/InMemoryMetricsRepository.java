@@ -16,18 +16,16 @@
 package com.alibaba.csp.sentinel.dashboard.repository.metric;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.MetricEntity;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
-import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import org.springframework.stereotype.Component;
 
 /**
@@ -41,10 +39,14 @@ public class InMemoryMetricsRepository implements MetricsRepository<MetricEntity
 
     private static final long MAX_METRIC_LIVE_TIME_MS = 1000 * 60 * 5;
 
+    //There is a problem with this implementation. The time unit of the statistical sample must be seconds.
+    private static final long SECOND_MILLIS = 1000;
+    private static final int MAX_METRIC_SAMPLES = (int) (MAX_METRIC_LIVE_TIME_MS / SECOND_MILLIS);
+
     /**
      * {@code app -> resource -> timestamp -> metric}
      */
-    private Map<String, Map<String, ConcurrentLinkedHashMap<Long, MetricEntity>>> allMetrics = new ConcurrentHashMap<>();
+    private Map<String, Map<String, AtomicReferenceArray<MetricEntity>>> allMetrics = new ConcurrentHashMap<>();
 
 
 
@@ -54,13 +56,15 @@ public class InMemoryMetricsRepository implements MetricsRepository<MetricEntity
             return;
         }
         allMetrics.computeIfAbsent(entity.getApp(), e -> new ConcurrentHashMap<>(16))
-            .computeIfAbsent(entity.getResource(), e -> new ConcurrentLinkedHashMap.Builder<Long, MetricEntity>()
-                .maximumWeightedCapacity(MAX_METRIC_LIVE_TIME_MS).weigher((key, value) -> {
-                    // Metric older than {@link #MAX_METRIC_LIVE_TIME_MS} will be removed.
-                    int weight = (int)(System.currentTimeMillis() - key);
-                    // weight must be a number greater than or equal to one
-                    return Math.max(weight, 1);
-                }).build()).put(entity.getTimestamp().getTime(), entity);
+                .computeIfAbsent(entity.getResource(), e -> new AtomicReferenceArray<>(MAX_METRIC_SAMPLES))
+                .set(getIndex(entity), entity);
+    }
+
+    /**
+     * calculate index
+     */
+    private int getIndex(MetricEntity entity) {
+        return (int)(entity.getTimestamp().getTime() / SECOND_MILLIS) % MAX_METRIC_SAMPLES;
     }
 
     @Override
@@ -78,17 +82,23 @@ public class InMemoryMetricsRepository implements MetricsRepository<MetricEntity
         if (StringUtil.isBlank(app)) {
             return results;
         }
-        Map<String, ConcurrentLinkedHashMap<Long, MetricEntity>> resourceMap = allMetrics.get(app);
+        Map<String, AtomicReferenceArray<MetricEntity>> resourceMap = allMetrics.get(app);
         if (resourceMap == null) {
             return results;
         }
-        ConcurrentLinkedHashMap<Long, MetricEntity> metricsMap = resourceMap.get(resource);
-        if (metricsMap == null) {
+        AtomicReferenceArray<MetricEntity> metricsArray = resourceMap.get(resource);
+        if (metricsArray == null) {
             return results;
         }
-        for (Entry<Long, MetricEntity> entry : metricsMap.entrySet()) {
-            if (entry.getKey() >= startTime && entry.getKey() <= endTime) {
-                results.add(entry.getValue());
+        //This code can be optimized, Reduce the search range based on startTime and endTime
+        for (int i = 0 ; i < MAX_METRIC_SAMPLES ; i++) {
+            MetricEntity entity = metricsArray.get(i);
+            if (entity == null) {
+                continue;
+            }
+            long time = entity.getTimestamp().getTime();
+            if (time >= startTime && time <= endTime) {
+                results.add(entity);
             }
         }
         return results;
@@ -101,28 +111,34 @@ public class InMemoryMetricsRepository implements MetricsRepository<MetricEntity
             return results;
         }
         // resource -> timestamp -> metric
-        Map<String, ConcurrentLinkedHashMap<Long, MetricEntity>> resourceMap = allMetrics.get(app);
+        Map<String, AtomicReferenceArray<MetricEntity>> resourceMap = allMetrics.get(app);
         if (resourceMap == null) {
             return results;
         }
         final long minTimeMs = System.currentTimeMillis() - 1000 * 60;
         Map<String, MetricEntity> resourceCount = new ConcurrentHashMap<>(32);
 
-        for (Entry<String, ConcurrentLinkedHashMap<Long, MetricEntity>> resourceMetrics : resourceMap.entrySet()) {
-            for (Entry<Long, MetricEntity> metrics : resourceMetrics.getValue().entrySet()) {
-                if (metrics.getKey() < minTimeMs) {
+        for (Entry<String, AtomicReferenceArray<MetricEntity>> resourceMetrics : resourceMap.entrySet()) {
+            AtomicReferenceArray<MetricEntity> metricsArray = resourceMetrics.getValue();
+            //This code can be optimized, Reduce the search range based on minTimeMs
+            for (int i = 0 ; i < MAX_METRIC_SAMPLES ; i++) {
+                MetricEntity entity = metricsArray.get(i);
+                if (entity == null) {
                     continue;
                 }
-                MetricEntity newEntity = metrics.getValue();
+                long time = entity.getTimestamp().getTime();
+                if (time < minTimeMs) {
+                    continue;
+                }
                 if (resourceCount.containsKey(resourceMetrics.getKey())) {
                     MetricEntity oldEntity = resourceCount.get(resourceMetrics.getKey());
-                    oldEntity.addPassQps(newEntity.getPassQps());
-                    oldEntity.addRtAndSuccessQps(newEntity.getRt(), newEntity.getSuccessQps());
-                    oldEntity.addBlockQps(newEntity.getBlockQps());
-                    oldEntity.addExceptionQps(newEntity.getExceptionQps());
+                    oldEntity.addPassQps(entity.getPassQps());
+                    oldEntity.addRtAndSuccessQps(entity.getRt(), entity.getSuccessQps());
+                    oldEntity.addBlockQps(entity.getBlockQps());
+                    oldEntity.addExceptionQps(entity.getExceptionQps());
                     oldEntity.addCount(1);
                 } else {
-                    resourceCount.put(resourceMetrics.getKey(), MetricEntity.copyOf(newEntity));
+                    resourceCount.put(resourceMetrics.getKey(), MetricEntity.copyOf(entity));
                 }
             }
         }
