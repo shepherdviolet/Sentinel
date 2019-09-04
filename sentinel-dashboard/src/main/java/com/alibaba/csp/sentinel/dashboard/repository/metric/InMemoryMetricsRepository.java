@@ -116,7 +116,8 @@ public class InMemoryMetricsRepository implements MetricsRepository<MetricEntity
         if (resourceMap == null) {
             return results;
         }
-        final long minTimeMs = System.currentTimeMillis() - 1000 * 60;
+        //As long as there is data in 5 minutes, it will be displayed on the dashboard.
+        final long minTimeMs = System.currentTimeMillis() - 1000 * 60 * 5;
         Map<String, MetricEntity> resourceCount = new ConcurrentHashMap<>(32);
 
         for (Entry<String, AtomicReferenceArray<MetricEntity>> resourceMetrics : resourceMap.entrySet()) {
